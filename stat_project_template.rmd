@@ -1,0 +1,308 @@
+---
+title: "Week 8 - Homework"
+author: "STAT 420, Summer 2020, D. Unger"
+date: ''
+output:
+  html_document: 
+    theme: readable
+    toc: yes
+  pdf_document: default
+urlcolor: cyan
+---
+
+***
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+options(scipen = 1, digits = 4, width = 80, fig.alin = "center")
+```
+
+
+<br>
+
+# Introduction
+
+<br>
+
+Home buyers always worry about overpaying for the house of their choice. It is natural for all buyers to get a second price consultation or to make sure that the house price is within a resonable price range for that locality. On the other hand, potential house sellers will want to understand which features(or amenities) influence the house price the most. This study focuses on taking historic house sale prices of King County from the year 2014 - 2015 and building a Regression model that can help users understand which features affect the price the most and also predict the price with high accuracy and confidence level.
+
+<br/>
+
+# Methods
+
+<br/>
+
+## Data Cleaning 
+
+- Read the file.
+- Remove columns id, date, 
+- Convert fields to factor.
+- Split to Test and TRain
+
+```{r message = FALSE, warning = FALSE}
+library("readr")
+house = read_csv("kc_house_data.csv")
+house = subset(house, select = -c(id, date) )
+
+#house$zipcode=as.factor(house$zipcode)
+house$condition=as.factor(house$condition)
+house$waterfront=as.factor(house$waterfront)
+house$view=as.factor(house$view)
+
+```
+
+<br>
+
+***Split to Test and Train***
+
+```{r}
+set.seed(420)
+house_idx  = sample(nrow(house), size = trunc(0.70 * nrow(house)))
+train = house[house_idx, ]
+test = house[-house_idx, ]
+print(paste("Train Size : ", nrow(train)))
+print(paste("Test Size : ", nrow(test)))
+```
+<br>
+
+## Data Exploration
+
+***Pair plots to understand numeric dependency*** 
+
+```{r message = FALSE, warning = FALSE}
+train_subset = subset(train, select = c(price, sqft_living, grade, sqft_above, sqft_living15, bathrooms))
+pairs(train_subset,col = "dodgerblue")
+```
+<br/>
+
+***Box plots for Factors***
+
+```{r message = FALSE, warning = FALSE}
+par(mfrow = c(2, 2))
+boxplot(train$price~train$condition, data=train)
+#boxplot(train$price~train$view, data=train)
+boxplot(train$price~train$waterfront, data=train)
+#boxplot(train$price~train$zipcode, data=train)
+```
+
+
+***Correlation Plot***
+
+```{r message = FALSE, warning = FALSE}
+library(corrplot)
+corrplot(cor(train_subset), type="full", method = "circle", main="Correlation")
+print(round(cor(train_subset), digits=2))
+```
+
+Highly Correlated features 
+
+Correlation between price and sqft_living is (0.7)
+Correlation between price and grade is (0.67)
+Correlation between price and sqft_above is (0.61)
+Correlation between price and sqft_living15 is (0.59)
+Correlation between price and bathrooms is (0.53)
+
+
+<br>
+
+***House Price Distribution***
+
+```{r message = FALSE, warning = FALSE}
+library(ggplot2)
+ggplot(house, aes(x = price)) +
+geom_histogram(col = 'black', fill = 'blue', binwidth = 200000, center = 100000) +
+theme_linedraw() + 
+theme(plot.title = element_text(hjust = 0, face = 'bold',color = 'black'),
+      plot.subtitle = element_text(face = "italic")) +
+labs(x = 'Price (USD)', y = 'Frequency', title = "House Sales in King County, USA",
+     subtitle = "Price distribution") +
+scale_y_continuous(labels = scales::comma, limits = c(0,8000), breaks = c(0,2000,4000,6000,8000)) + 
+scale_x_continuous(labels = scales::comma)
+```
+
+From the distribution chart we see that the price range of 200,000 - 600,000 dollars is having a higher frequency than other prices. There some outliers though
+
+
+***Building Condition***
+
+```{r message = FALSE, warning = FALSE}
+rbPal = colorRampPalette(c('blue','green'))
+rbPal2 = colorRampPalette(c('black','red'))
+colors1 = rbPal(13)
+colors2 =  rbPal2(13)
+
+ggplot(house, aes(x = sqft_living15, y = sqft_lot15)) + 
+geom_jitter(alpha = 0.5, aes(shape = as.factor(condition), color = as.factor(grade))) +
+scale_color_manual(values = colors1) +
+theme_linedraw() +
+theme(legend.title = element_text(size=10),
+      plot.title = element_text(hjust = 0, face = 'bold',color = 'black'),
+      plot.subtitle = element_text(face = "italic")) +
+labs(x = 'Living Area (sq.ft)', y = 'Lot Area (sq.ft)', title = "House Sales in King County, USA",
+     subtitle = "House built in 1900 - 2015") +
+guides(color = guide_legend(title = "Grade"),
+       shape = guide_legend(title = 'Condition')) +
+scale_x_continuous(labels = scales::comma) +
+scale_y_continuous(labels = scales::comma)
+```
+
+Try to visualize living area, lot area, condition, and grade into one graph. From those chart we can say that the house with grade 6 - 8 and house with square shape (condition 3) are dominant.
+
+## Model Building
+
+```{r message = FALSE, warning = FALSE, echo=FALSE}
+######## Common Diagnotics Function
+library(lmtest)
+model_diagonistics = function (model) 
+  {
+  alpha = 0.10
+  thresh_R2=0.75
+  tresh_RMSE=75000
+  thresh_AIC=50000
+  thresh_predictors=15
+  thresh_high_lev=500
+  thresh_cook_dist=500
+
+print("***** Checking Explainability")
+print(paste("Number of Predictors : ",length(coef(model))))
+ifelse(length(coef(model)) > thresh_predictors,
+       print("Explainability Check Failed"),
+       print("Explainability Check Succeded"))
+
+print("***** Checking Predictability")
+
+rmse = sqrt(mean((resid(model) / (1 - hatvalues(model))) ^ 2))
+print(paste("rmse ",rmse))
+
+r2 = summary(model)$adj.r.squared
+print(paste("r2 ",r2))
+
+mod_aic = extractAIC(model)
+print(paste("AIC ",mod_aic))
+
+ifelse (r2 > thresh_R2 && mod_aic < thresh_AIC,print("Predicatibilty Check Success"), 
+print("Predicatibilty Check Failed"))
+
+print('***** Checking Constant Variance') 
+
+print(paste("BP Test pvalue :  ",bptest(model)$p.value))
+ decide = unname(bptest(model)$p.value < alpha)
+  ifelse(decide, print("Constant variance Assumption Suspect"), print("Constant variance Assumption OK"))
+  
+high_lev = length(hatvalues(model)[hatvalues(model) > 2 * mean(hatvalues(model))])
+
+ifelse (high_lev < thresh_high_lev,print("Large Leverage Check Success"), 
+print("Large Leverage Check Failed"))
+
+cook_dist=length(cooks.distance(model1)[cooks.distance(model1) > 4 / length(cooks.distance(model1))])
+
+ifelse (cook_dist < thresh_cook_dist,"Large Influence Check Success", "Large Influence Check Failed")
+
+}
+```
+
+<br>
+
+***Model 1***
+
+Simple additive Model - All Predictors    
+
+```{r message = FALSE, warning = FALSE}
+library(boot)
+model1 = lm(price~.,data=train)
+model_diagonistics(model1)
+```
+
+<br/>
+
+***Model 2***
+
+- Simple additive Model - Eliminating collinearity    
+- Features : bedrooms,bathrooms,sqft_living,floors,yr_built,zipcode,grade 
+
+```{r message = FALSE, warning = FALSE}
+model2 = lm(price~bedrooms+bathrooms+sqft_living+sqft_lot+floors+yr_built+grade,data=house)
+model_diagonistics(model2)
+```
+
+<br/>
+
+***Model 3***
+
+- Interaction Model 
+Features : bedrooms,bathrooms,sqft_living,floors,yr_built,zipcode,grade
+
+
+```{r message = FALSE, warning = FALSE}
+library(boot)
+model3 = lm(price~bedrooms+bathrooms+sqft_living+sqft_lot+floors+yr_built:grade,data=train)
+model_diagonistics(model3)
+```
+
+
+***Model 4***
+
+Adding transformation to predictor to compensate for the constant variance suspect.
+
+```{r message = FALSE, warning = FALSE}
+library(boot)
+model4 = lm(log(price) ~ .,data=train)
+model_diagonistics(model4)
+plot(fitted(model4), resid(model4), col = "dodgerblue", pch = 20, cex = 1.5, xlab = "Fitted", ylab = "Residuals")
+abline(h = 0, lty = 2, col = "darkorange", lwd = 2)
+
+qqnorm(resid(model4), col = "darkgrey")
+qqline(resid(model4), col = "dodgerblue", lwd = 2)
+```
+<br>
+***Model 5***
+
+Adding transformation to predictor and response variable
+
+```{r message = FALSE, warning = FALSE}
+library(boot)
+model5 = lm(log(price)~bedrooms+bathrooms+log(sqft_living)+sqft_lot+floors+yr_built + sqft_above + grade + yr_built:grade, data = train)
+model_diagonistics(model5)
+```
+
+<br>
+***Model 6***
+
+```{r message = FALSE, warning = FALSE}
+library(boot)
+model6 = lm(price~bedrooms+bathrooms+sqft_living+sqft_lot+floors+yr_built + sqft_above + grade + yr_built:grade, data = train)
+model_diagonistics(model6)
+```
+
+
+<br>
+***Model 7***
+<br>
+***Model 8***
+<br>
+***Model 9***
+<br>
+***Model 10***
+<br>
+
+
+## Model Selection
+
+***Select top 3 from above***
+Get both test and train matrix
+Anova to decide smaller or larger model
+
+Balance the following :    
+Improve predictability by reducing error.     
+Improve explainability by simplyfying.      
+Validating Assumptions.      
+
+# Results
+
+Various Plots for top 3 models
+Results in tabular format
+
+# Discussion
+
+One champion model and why
+
+

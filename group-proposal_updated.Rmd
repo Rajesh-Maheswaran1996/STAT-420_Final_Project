@@ -1,0 +1,62 @@
+---
+title: "Exploring the variation of house pricing in King County Washington"
+subtitle: "Predicting the house sale price using Multiple Linear Regression"
+author: "Aravind, Anitha, Rajesh"
+date: "7/18/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+
+ Home buyers always worry about overpaying for the house of their choice. It is natural for all buyers to get a second price consultation or to make sure that the house price is within a resonable price range for that locality. On the other hand, potential house sellers will want to understand which features(or amenities) influence the house price the most. This study focuses on taking historic house sale prices of King County from the year 2014 - 2015 and building a Regression model that can help users understand which features affect the price the most and also predict the price with high accuracy and confidence level.
+ 
+## Team Members
+
+- Aravind Pillai
+- Anitha Lakshmipathi
+- Rajesh Maheswaran
+ 
+## Description of dataset
+
+This dataset has 21,613 observations and 21 variables. Some of the more important variables are the following :-
+
+```{r, echo=FALSE}
+library(knitr)
+variables = c("Price",
+              "Bedrooms", 
+              "Bathrooms",
+              "Sqft_living",
+              "Sqft_loft",
+              "Floors",
+              "Waterfront",
+              "Condition",
+              "Building Grade",
+              "Sqft_above",
+              "Sqft_below",
+              "Zipcode")
+description = c('Price of each house sold', 'Number of Bedrooms', 'Number of Bathrooms', 'Square footage of the apartments interior living space', 'Square footage of the land space', 'Number of floors', 'Whether the apartment was overlooking the waterfront property', 'Condition of the property', 'Rating the quality of the construction and Design', 'Square footage of the interior housing space that is above ground level', 'Square footage of the interior housing space that is below ground level', 'Zipcode of the locality')
+kable(data.frame(Variables=variables, Description=description))
+```
+ 
+## Background information on data set
+
+  This data for the dataset was provided by King County, Washington.It includes details of houses sold in King Country from May 2014 - May 2015.
+  [Dataset Source](https://www.kaggle.com/harlfoxem/housesalesprediction)
+
+## Interest in Topic
+  The phenomenon of rising and falling house prices has usually attracted interest from researchers as well as many other interested parties. There are several factors that affect the house price in a region and regression techniques have proven to be quite reliable in accuratly predicting and explaining the factors that affect the cost. Equipped with the knowledge gained over the semester, we feel well prepared in order to understand how a predictive model is used in the real estate business and this is the major driving force for our interest. House price prediction usually has a fixed response variable and multiple predictor variables so it gives us the oppurtunity to develop multiple regression models and compare them therby allowing us to understanding which is the better model. This dataset also has a large number of observations so we can cross validate the prediction of the model and perform different diagnostic tests. Thus we will be able to comprehensively prove why we feel our proposed model fits the data the best.
+  
+## Evidence of the Data
+
+The response variable is **price**
+
+```{r, echo=FALSE, message = FALSE}
+library("readr");
+housing_data = read_csv("kc_house_data.csv")
+knitr::kable(head(housing_data)[,1:15])
+```
+
